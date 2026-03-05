@@ -1,12 +1,6 @@
 {
   "users": [
     {
-      "id": "1",
-      "name": "Nguyễn Văn An",
-      "email": "an.nguyen@example.com",
-      "phoneNumber": "0901234567"
-    },
-    {
       "id": "2",
       "name": "Trần Thị Bình",
       "email": "binh.tran@example.com",
@@ -125,6 +119,12 @@
       "name": "Test User",
       "email": "test@example.com",
       "phoneNumber": "0987654321"
+    },
+    {
+      "id": "22",
+      "name": "Ngô Văn E",
+      "email": "e.ngo@example.com",
+      "phoneNumber": "0989012345"
     }
   ]
 }

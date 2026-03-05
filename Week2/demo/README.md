@@ -28,6 +28,9 @@ Máy chủ sẽ chạy trên `http://localhost:3000`
 GET /api/users
 ```
 
+200 (OK): Lấy danh sách thành công
+500 (Internal Server Error): Lỗi đọc dữ liệu từ database
+
 **Ví dụ Response:**
 ```json
 [
@@ -45,6 +48,10 @@ GET /api/users
 GET /api/users/:id
 ```
 
+200 (OK): Tìm thấy người dùng
+404 (Not Found): Người dùng không tồn tại
+500 (Internal Server Error): Lỗi đọc dữ liệu
+
 **Ví dụ:**
 ```
 GET /api/users/1
@@ -54,6 +61,10 @@ GET /api/users/1
 ```
 POST /api/users
 Content-Type: application/json
+
+201 (Created): Tạo người dùng thành công
+400 (Bad Request): Thiếu name hoặc email
+500 (Internal Server Error): Lỗi tạo người dùng
 
 {
   "name": "Tên người dùng",
@@ -67,6 +78,11 @@ Content-Type: application/json
 PUT /api/users/:id
 Content-Type: application/json
 
+200 (OK): Cập nhật thành công
+400 (Bad Request): Thiếu name hoặc email
+404 (Not Found): Người dùng không tồn tại
+500 (Internal Server Error): Lỗi cập nhật
+
 {
   "name": "Tên mới",
   "email": "email_moi@example.com",
@@ -78,6 +94,9 @@ Content-Type: application/json
 ```
 DELETE /api/users/:id
 ```
+200 (OK): Xóa thành công
+404 (Not Found): Người dùng không tồn tại
+500 (Internal Server Error): Lỗi xóa
 
 ### 6. Kiểm tra trạng thái server
 ```

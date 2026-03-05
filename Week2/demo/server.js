@@ -95,6 +95,10 @@ app.put('/api/users/:id', (req, res) => {
     if (userIndex === -1) {
       return res.status(404).json({ message: 'User not found' });
     }
+
+    if (!name || !email) {
+      return res.status(400).json({ message: 'Name and email are required' });
+    }
     
     if (name) {
       db.users[userIndex].name = name;
