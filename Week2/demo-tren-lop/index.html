@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <title>RESTful API Demo - Full 5 Methods</title>
+    <style>
+        body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background: #f0f2f5; }
+        .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .left { flex: 2; } .right { flex: 1; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; }
+        button { cursor: pointer; padding: 5px 10px; margin: 2px; }
+        .btn-add { background: #28a745; color: white; border: none; padding: 10px; width: 100%; margin-bottom: 10px; }
+        input { display: block; width: 90%; margin-bottom: 10px; padding: 8px; }
+    </style>
+</head>
+<body>
+
+    <div class="panel left">
+        <h2>Danh sách Users</h2>
+        <button onclick="fetchAll()">Làm mới danh sách (GET)</button>
+        <table>
+            <thead>
+                <tr><th>ID</th><th>Tên</th><th>Email</th><th>Thao tác</th></tr>
+            </thead>
+            <tbody id="user-list"></tbody>
+        </table>
+    </div>
+
+    <div class="panel right">
+        <h2>Thao tác Chi tiết</h2>
+        <div id="form-area">
+            <input type="text" id="name" placeholder="Họ tên">
+            <input type="email" id="email" placeholder="Email">
+            <input type="text" id="phone" placeholder="Số điện thoại">
+            <button class="btn-add" onclick="createUser()">Thêm mới (POST)</button>
+        </div>
+        <hr>
+        <div id="status-msg" style="color: blue;"></div>
+    </div>
+
+    <script>
+        const API_URL = 'http://127.0.0.1:5000/api/users';
+
+        // 1. Fetch All (GET)
+        async function fetchAll() {
+            const res = await fetch(API_URL);
+            const data = await res.json();
+            const tbody = document.getElementById('user-list');
+            tbody.innerHTML = data.map(u => `
+                <tr>
+                    <td>${u.id}</td>
+                    <td>${u.name}</td>
+                    <td>${u.email}</td>
+                    <td>
+                        <button onclick="viewDetail('${u.id}')">Xem</button>
+                        <button onclick="deleteUser('${u.id}')" style="color:red">Xóa</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // 2. View Detail (GET by ID)
+        async function viewDetail(id) {
+            const res = await fetch(`${API_URL}/${id}`);
+            const u = await res.json();
+            document.getElementById('status-msg').innerHTML = `
+                <strong>Đang xem ID: ${u.id}</strong><br>
+                SĐT: ${u.phoneNumber}<br>
+                <button onclick="updateUser('${u.id}')">Cập nhật tên thành 'Đã sửa' (PUT)</button>
+            `;
+        }
+
+        // 3. Create (POST)
+        async function createUser() {
+            const user = {
+                name: document.getElementById('name').value,
+                email: document.getElementById('email').value,
+                phoneNumber: document.getElementById('phone').value
+            };
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify(user)
+            });
+            fetchAll();
+        }
+
+        // 4. Update (PUT)
+        async function updateUser(id) {
+            await fetch(`${API_URL}/${id}`, {
+                method: 'PUT',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ name: "User đã chỉnh sửa" })
+            });
+            fetchAll();
+            document.getElementById('status-msg').innerHTML = "Đã cập nhật tên!";
+        }
+
+        // 5. Delete (DELETE)
+        async function deleteUser(id) {
+            if(confirm("Xóa nhé?")) {
+                await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+                fetchAll();
+            }
+        }
+
+        fetchAll(); // Chạy lần đầu
+    </script>
+</body>
+</html>
