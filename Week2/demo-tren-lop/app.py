@@ -1,8 +1,14 @@
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
 from flask_cors import CORS
+import jwt
+from datetime import datetime, timedelta
+from functools import wraps
 
 app = Flask(__name__)
 CORS(app) # Cho phép Client-Server tách biệt gọi nhau
+
+# Secret key cho JWT
+SECRET_KEY = "your-secret-key-here"
 
 # Database của bạn
 db_users = [
@@ -29,13 +35,63 @@ db_users = [
     {"id": "22", "name": "Ngô Văn E", "email": "e.ngo@example.com", "phoneNumber": "0989012345"}
 ]
 
+# ===== MIDDLEWARE =====
+# Decorator kiểm tra Token trước khi truy cập
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get('Authorization')
+        
+        if not auth_header:
+            return jsonify({"error": "Thiếu Token"}), 401
+        
+        try:
+            token = auth_header.split(" ")[1]  # Lấy token từ "Bearer <token>"
+            decoded = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            request.user_id = decoded['user_id']  # Lưu user_id vào request
+            request.user_name = decoded['user_name']
+        except:
+            return jsonify({"error": "Token không hợp lệ hoặc hết hạn"}), 401
+        
+        return f(*args, **kwargs)
+    return decorated
+
+# ===== AUTHENTICATION =====
+# 1. LOGIN: Nhận Token
+@app.route('/api/login', methods=['POST'])
+def login():
+    data = request.json
+    user_id = data.get('user_id')
+    password = data.get('password')
+    
+    # Tìm user (demo đơn giản)
+    user = next((u for u in db_users if u['id'] == user_id), None)
+    if not user or password != "123456":  # Password demo
+        return jsonify({"error": "Thông tin đăng nhập sai"}), 401
+    
+    # Tạo JWT Token (hết hạn sau 1 giờ)
+    token = jwt.encode({
+        'user_id': user_id,
+        'user_name': user['name'],
+        'exp': datetime.utcnow() + timedelta(hours=1)
+    }, SECRET_KEY, algorithm="HS256")
+    
+    return jsonify({
+        "message": "Đăng nhập thành công",
+        "token": token,
+        "user": user
+    }), 200
+
+# ===== USER CRUD API (Đã bảo vệ với Token) =====
 # 1. GET: Lấy toàn bộ danh sách
 @app.route('/api/users', methods=['GET'])
+@token_required
 def get_all_users():
     return jsonify(db_users), 200
 
-# 2. GET: Lấy thông tin 1 user cụ thể (Dựa vào ID trên URL)
+# 2. GET: Lấy thông tin 1 user cụ thể
 @app.route('/api/users/<string:user_id>', methods=['GET'])
+@token_required
 def get_user(user_id):
     user = next((u for u in db_users if u['id'] == user_id), None)
     if user:
@@ -43,6 +99,7 @@ def get_user(user_id):
     return jsonify({"error": "Không tìm thấy user"}), 404
 
 # 3. POST: Thêm user mới
+@token_required
 @app.route('/api/users', methods=['POST'])
 def create_user():
     new_data = request.json
@@ -52,22 +109,34 @@ def create_user():
     return jsonify(new_data), 201
 
 # 4. PUT: Cập nhật thông tin user
-@app.route('/api/users/<string:user_id>', methods=['PUT'])
+@token_required
 def update_user(user_id):
     user = next((u for u in db_users if u['id'] == user_id), None)
     if not user:
         return jsonify({"error": "Không tìm thấy"}), 404
     
     update_data = request.json
+    user.update(update_data)
     user.update(update_data) # Cập nhật dữ liệu mới vào user cũ
     return jsonify(user), 200
 
-# 5. DELETE: Xóa user
-@app.route('/api/users/<string:user_id>', methods=['DELETE'])
+@token_required
 def delete_user(user_id):
     global db_users
     db_users = [u for u in db_users if u['id'] != user_id]
-    return '', 204 # No Content: Xóa thành công nhưng không cần trả về dữ liệu
+    return '', 204
+
+# 6. GET: Lấy hồ sơ người dùng hiện tại (dựa trên JWT)
+@app.route('/api/profile', methods=['GET'])
+@token_required
+def get_profile():
+    user = next((u for u in db_users if u['id'] == request.user_id), None)
+    return jsonify({
+        "message": "Server không nhớ bạn, nhưng JWT Token cho phép tôi biết bạn là ai",
+        "data": user
+    }), 200
+    # Nếu không có token hoặc token sai
+    return jsonify({"error": "Bạn là ai? Tôi không giữ Session, hãy gửi Token!"}), 401
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)

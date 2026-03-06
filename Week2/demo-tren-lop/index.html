@@ -2,22 +2,51 @@
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
-    <title>RESTful API Demo - Full 5 Methods</title>
+    <title>RESTful API Demo - Ver 2: Stateless</title>
     <style>
         body { font-family: sans-serif; display: flex; gap: 20px; padding: 20px; background: #f0f2f5; }
         .panel { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .left { flex: 2; } .right { flex: 1; }
+        
+        /* CSS cho phần Stateless mới */
+        .auth-box { background: #34495e; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; }
+        .token-text { font-family: monospace; font-size: 12px; color: #ecf0f1; background: #2c3e50; padding: 5px; display: block; margin-top: 5px; word-break: break-all; }
+        .status-on { color: #2ecc71; font-weight: bold; }
+        .status-off { color: #e74c3c; font-weight: bold; }
+        
         table { width: 100%; border-collapse: collapse; }
         th, td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; }
-        button { cursor: pointer; padding: 5px 10px; margin: 2px; }
+        button { cursor: pointer; padding: 6px 12px; margin: 2px; border-radius: 4px; border: 1px solid #ccc; }
         .btn-add { background: #28a745; color: white; border: none; padding: 10px; width: 100%; margin-bottom: 10px; }
-        input { display: block; width: 90%; margin-bottom: 10px; padding: 8px; }
+        .btn-profile { background: #3498db; color: white; border: none; }
+        input { display: block; width: 90%; margin-bottom: 10px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
     </style>
 </head>
 <body>
 
     <div class="panel left">
-        <h2>Danh sách Users</h2>
+        <div class="auth-box">
+            <h3>🔐 Stateless Authentication (Ver 2)</h3>
+            <p>Trạng thái: <span id="auth-status" class="status-off">Chưa đăng nhập</span></p>
+            
+            <div id="login-form">
+                <input type="text" id="user-id" placeholder="User ID (ví dụ: 2)" style="color:black !important">
+                <input type="password" id="password" placeholder="Password (123456)" style="color:black !important">
+                <button onclick="login()" style="width:100%; background:#3498db; color:white; border:none;">Đăng nhập</button>
+            </div>
+            
+            <div id="logged-in-area" style="display:none">
+                <p style="color: #2ecc71;">✓ Đã đăng nhập</p>
+                <button class="btn-profile" onclick="getProfile()">Xem Profile</button>
+                <button onclick="logout()" style="width:100%; background:#e74c3c; color:white; border:none;">Đăng xuất</button>
+                <div style="margin-top:10px; padding:8px; background:#2c3e50; border-radius:4px; font-size:11px;">
+                    Token lưu tại Client (localStorage):<br>
+                    <span class="token-text" id="token-val"></span>
+                </div>
+            </div>
+        </div>
+
+        <h2>Danh sách Users (Chức năng cũ)</h2>
         <button onclick="fetchAll()">Làm mới danh sách (GET)</button>
         <table>
             <thead>
@@ -37,75 +66,226 @@
         </div>
         <hr>
         <div id="status-msg" style="color: blue;"></div>
+        <div id="profile-result" style="margin-top:10px; padding:10px; background:#e8f4fd; border-radius:4px; display:none"></div>
     </div>
 
     <script>
         const API_URL = 'http://127.0.0.1:5000/api/users';
+        const LOGIN_URL = 'http://127.0.0.1:5000/api/login';
+        const PROFILE_URL = 'http://127.0.0.1:5000/api/profile';
 
-        // 1. Fetch All (GET)
-        async function fetchAll() {
-            const res = await fetch(API_URL);
-            const data = await res.json();
-            const tbody = document.getElementById('user-list');
-            tbody.innerHTML = data.map(u => `
-                <tr>
-                    <td>${u.id}</td>
-                    <td>${u.name}</td>
-                    <td>${u.email}</td>
-                    <td>
-                        <button onclick="viewDetail('${u.id}')">Xem</button>
-                        <button onclick="deleteUser('${u.id}')" style="color:red">Xóa</button>
-                    </td>
-                </tr>
-            `).join('');
+        // ===== STATELESS PATTERN: Lưu Token tại Client =====
+        function getToken() {
+            return localStorage.getItem('token');
         }
 
-        // 2. View Detail (GET by ID)
+        function setToken(token) {
+            localStorage.setItem('token', token);
+        }
+
+        function removeToken() {
+            localStorage.removeItem('token');
+        }
+
+        // ===== HELPER: Gửi request với Token =====
+        async function fetchWithToken(url, options = {}) {
+            const token = getToken();
+            const headers = options.headers || {};
+            
+            if (token) {
+                headers['Authorization'] = `Bearer ${token}`;
+            }
+            
+            return fetch(url, { ...options, headers });
+        }
+
+        // ===== LOGIN =====
+        async function login() {
+            const userId = document.getElementById('user-id').value;
+            const password = document.getElementById('password').value;
+
+            if (!userId || !password) {
+                alert("Nhập User ID và Password!");
+                return;
+            }
+
+            try {
+                const res = await fetch(LOGIN_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user_id: userId, password: password })
+                });
+
+                const data = await res.json();
+
+                if (res.status === 200) {
+                    setToken(data.token);  // Lưu token vào localStorage
+                    updateAuthUI(true, data.token);
+                    document.getElementById('status-msg').innerHTML = `<span style="color:green">✓ Đăng nhập thành công!</span>`;
+                    fetchAll();
+                } else {
+                    alert(data.error);
+                }
+            } catch (err) {
+                alert("Lỗi kết nối server");
+            }
+        }
+
+        function logout() {
+            removeToken();
+            updateAuthUI(false, null);
+            document.getElementById('profile-result').style.display = "none";
+            document.getElementById('status-msg').innerHTML = "";
+            document.getElementById('user-list').innerHTML = "";
+        }
+
+        function updateAuthUI(isLoggedIn, token) {
+            const loginForm = document.getElementById('login-form');
+            const loggedInArea = document.getElementById('logged-in-area');
+            const authStatus = document.getElementById('auth-status');
+
+            if (isLoggedIn) {
+                loginForm.style.display = "none";
+                loggedInArea.style.display = "block";
+                authStatus.innerText = "Đã đăng nhập";
+                authStatus.className = "status-on";
+                document.getElementById('token-val').innerText = token.substring(0, 50) + "...";
+            } else {
+                loginForm.style.display = "block";
+                loggedInArea.style.display = "none";
+                authStatus.innerText = "Chưa đăng nhập";
+                authStatus.className = "status-off";
+            }
+        }
+
+        // ===== USER CRUD (Đã có bảo vệ Token) =====
+        async function fetchAll() {
+            if (!getToken()) {
+                alert("Vui lòng đăng nhập trước!");
+                return;
+            }
+
+            try {
+                const res = await fetchWithToken(API_URL);
+                const data = await res.json();
+
+                if (res.status === 401) {
+                    alert(data.error);
+                    logout();
+                    return;
+                }
+
+                const tbody = document.getElementById('user-list');
+                tbody.innerHTML = data.map(u => `
+                    <tr>
+                        <td>${u.id}</td>
+                        <td>${u.name}</td>
+                        <td>${u.email}</td>
+                        <td>
+                            <button onclick="viewDetail('${u.id}')">Xem</button>
+                            <button onclick="deleteUser('${u.id}')" style="color:red">Xóa</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                alert("Lỗi: " + err.message);
+            }
+        }
+
         async function viewDetail(id) {
-            const res = await fetch(`${API_URL}/${id}`);
+            const res = await fetchWithToken(`${API_URL}/${id}`);
             const u = await res.json();
             document.getElementById('status-msg').innerHTML = `
                 <strong>Đang xem ID: ${u.id}</strong><br>
                 SĐT: ${u.phoneNumber}<br>
-                <button onclick="updateUser('${u.id}')">Cập nhật tên thành 'Đã sửa' (PUT)</button>
+                <button onclick="updateUser('${u.id}')">Cập nhật tên (PUT)</button>
             `;
         }
 
-        // 3. Create (POST)
         async function createUser() {
             const user = {
                 name: document.getElementById('name').value,
                 email: document.getElementById('email').value,
                 phoneNumber: document.getElementById('phone').value
             };
-            await fetch(API_URL, {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(user)
-            });
-            fetchAll();
+
+            if (!user.name || !user.email || !user.phoneNumber) {
+                alert("Điền đầy đủ thông tin!");
+                return;
+            }
+
+            try {
+                const res = await fetchWithToken(API_URL, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify(user)
+                });
+
+                if (res.status === 201) {
+                    document.getElementById('name').value = '';
+                    document.getElementById('email').value = '';
+                    document.getElementById('phone').value = '';
+                    document.getElementById('status-msg').innerHTML = '<span style="color:green">✓ Thêm thành công!</span>';
+                    fetchAll();
+                }
+            } catch (err) {
+                alert("Lỗi: " + err.message);
+            }
         }
 
-        // 4. Update (PUT)
         async function updateUser(id) {
-            await fetch(`${API_URL}/${id}`, {
+            const res = await fetchWithToken(`${API_URL}/${id}`, {
                 method: 'PUT',
                 headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ name: "User đã chỉnh sửa" })
+                body: JSON.stringify({ name: "User đã sửa" })
             });
-            fetchAll();
-            document.getElementById('status-msg').innerHTML = "Đã cập nhật tên!";
-        }
 
-        // 5. Delete (DELETE)
-        async function deleteUser(id) {
-            if(confirm("Xóa nhé?")) {
-                await fetch(`${API_URL}/${id}`, { method: 'DELETE' });
+            if (res.status === 200) {
+                document.getElementById('status-msg').innerHTML = '<span style="color:green">✓ Đã cập nhật!</span>';
                 fetchAll();
             }
         }
 
-        fetchAll(); // Chạy lần đầu
+        async function deleteUser(id) {
+            if (confirm("Xóa user này?")) {
+                const res = await fetchWithToken(`${API_URL}/${id}`, { method: 'DELETE' });
+                if (res.status === 204) {
+                    document.getElementById('status-msg').innerHTML = '<span style="color:green">✓ Xóa thành công!</span>';
+                    fetchAll();
+                }
+            }
+        }
+
+        async function getProfile() {
+            try {
+                const res = await fetchWithToken(PROFILE_URL);
+                const data = await res.json();
+
+                const resultDiv = document.getElementById('profile-result');
+                resultDiv.style.display = "block";
+
+                if (res.status === 200) {
+                    resultDiv.innerHTML = `
+                        <strong>📋 Hồ sơ của bạn (từ JWT Token):</strong><br>
+                        <strong>Tên:</strong> ${data.data.name}<br>
+                        <strong>Email:</strong> ${data.data.email}<br>
+                        <strong>SĐT:</strong> ${data.data.phoneNumber}
+                    `;
+                } else {
+                    resultDiv.innerHTML = `<span style="color:red">Lỗi: ${data.error}</span>`;
+                }
+            } catch (err) {
+                alert("Lỗi: " + err.message);
+            }
+        }
+
+        // ===== Initial Load =====
+        window.onload = function() {
+            if (getToken()) {
+                updateAuthUI(true, getToken());
+                fetchAll();
+            }
+        };
     </script>
 </body>
 </html>
