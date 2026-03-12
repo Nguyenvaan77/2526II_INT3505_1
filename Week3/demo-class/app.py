@@ -1,48 +1,64 @@
 from flask import Flask, jsonify, request
+from response_helper import ResponseHelper
 
 app = Flask(__name__)
 
 # Dữ liệu lộn xộn, trộn lẫn tiếng Anh và tiếng Việt
-data_list = [
-    {"id": 1, "task_name": "Học REST v0", "trang_thai": "moi"},
-    {"id": 2, "task_name": "Viết báo cáo", "trang_thai": "xong"}
+tasks = [
+    {"id": 1, "title": "Learn REST Consistency", "status": "new"},
+    {"id": 2, "title": "Write report", "status": "done"}
 ]
 
-# 1. Lấy tất cả (Sai: Dùng động từ, CamelCase, trả về list thô)
-@app.route('/getAllTasks', methods=['GET'])
+# 1. LẤY TẤT CẢ (GET /tasks)
+@app.route('/tasks', methods=['GET'])
 def get_all():
-    return jsonify(data_list)
+    return ResponseHelper.success(tasks, "Get all tasks successfully", 200)
 
 # 2. Lấy một cái (Sai: Tên lộn xộn, cấu trúc ID kiểu query string)
-@app.route('/xemChiTiet', methods=['GET'])
-def get_one():
-    task_id = int(request.args.get('id'))
-    item = next((t for t in data_list if t['id'] == task_id), None)
-    return jsonify(item) # Trả về null nếu không thấy (không có báo lỗi)
+@app.route('/tasks/<int:task_id>', methods=['GET'])
+def get_one(task_id):
+    task = next((t for t in tasks if t['id'] == task_id), None)
+    if task:
+        return ResponseHelper.success(task, "Task found", 200)
+    return ResponseHelper.error("Task not found", 404)
 
-# 3. Thêm mới (Sai: Tên tiếng Việt có dấu gạch ngang, trả về string thô)
-@app.route('/them-moi-nhiem-vu', methods=['POST'])
+# 3.
+@app.route('/tasks', methods=['POST'])
 def add_task():
-    new_data = request.json
-    data_list.append({"id": 3, "task_name": new_data.get('name'), "trang_thai": "moi"})
-    return "Đã lưu vào máy chủ thành công!" 
+    data = request.json
+    if not data or 'title' not in data:
+        return ResponseHelper.error("Title is required", 400)
+        
+    new_task = {
+        "id": len(tasks) + 1,
+        "title": data.get('title'),
+        "status": "new"
+    }
+    tasks.append(new_task)
+    return ResponseHelper.success(new_task, "Task created successfully", 201)
 
-# 4. Sửa (Sai: Dùng POST để sửa thay vì PUT/PATCH, tên lộn xộn)
-@app.route('/UpdateCongViec', methods=['POST'])
-def edit_task():
-    task_id = int(request.args.get('id'))
-    for t in data_list:
-        if t['id'] == task_id:
-            t['task_name'] = request.json.get('name')
-    return jsonify({"mess": "update xong", "code": 1})
+# 4. SỬA (PUT /tasks/<id>)
+@app.route('/tasks/<int:task_id>', methods=['PUT'])
+def edit_task(task_id):
+    task = next((t for t in tasks if t['id'] == task_id), None)
+    if not task:
+        return ResponseHelper.error("Task not found to update", 404)
+    
+    data = request.json
+    task['title'] = data.get('title', task['title'])
+    task['status'] = data.get('status', task['status'])
+    return ResponseHelper.success(task, "Task updated successfully", 200)
 
-# 5. Xóa (Sai: Dùng GET để xóa - lỗi bảo mật nghiêm trọng)
-@app.route('/removeTaskNow', methods=['GET'])
-def delete_it():
-    task_id = int(request.args.get('id'))
-    global data_list
-    data_list = [t for t in data_list if t['id'] != task_id]
-    return "Xóa rồi nhé"
+# 5. XÓA (DELETE /tasks/<id>)
+@app.route('/tasks/<int:task_id>', methods=['DELETE'])
+def delete_task(task_id):
+    global tasks
+    task = next((t for t in tasks if t['id'] == task_id), None)
+    if not task:
+        return ResponseHelper.error("Task not found to delete", 404)
+
+    tasks = [t for t in tasks if t['id'] != task_id]
+    return ResponseHelper.success(None, "Task deleted successfully", 200)
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(port=5000)
