@@ -1,6 +1,8 @@
 from flask import Flask, jsonify, request
 from response_helper import ResponseHelper
 from functools import wraps # Dùng để tạo decorator
+import hashlib
+import json
 
 app = Flask(__name__)
 
@@ -28,21 +30,49 @@ tasks = [
     {"id": 2, "name": "Viết báo cáo Ver 1", "status": "Pending"}
 ]
 
+# Helper tạo ETag
+def generate_etag(data):
+    return hashlib.md5(
+        json.dumps(data, sort_keys=True).encode()
+    ).hexdigest()
+
+
 # --- 1. LẤY DANH SÁCH (GET /tasks) ---
 @app.route('/tasks', methods=['GET'])
 @require_api_key #Phải có key mới truy cập được 
 def get_tasks():
+    etag = generate_etag(tasks)
+
+    if request.headers.get("If-None-Match") == etag:
+        return "", 304
+
+    headers = {
+        "Cache-Control": "public, max-age=60",
+        "ETag": etag
+    }
     # Trả về mã 200 OK
-    return ResponseHelper.success(tasks,"OK", 200)
+    return ResponseHelper.success(tasks,"OK", 200, headers)
 
 # --- 2. LẤY CHI TIẾT 1 TASK (GET /tasks/<id>) ---
 @app.route('/tasks/<int:task_id>', methods=['GET'])
 @require_api_key
 def get_one_task(task_id):
-    task = next((t for t in tasks if t['id'] == task_id), None)
-    if task:
-        return ResponseHelper.success(task, "Found task", 200)
-    return ResponseHelper.error("Task not found", 404)
+    task = next((t for t in tasks if t["id"] == task_id), None)
+
+    if not task:
+        return ResponseHelper.error("Task not found", 404)
+
+    etag = generate_etag(task)
+
+    if request.headers.get("If-None-Match") == etag:
+        return "", 304
+
+    headers = {
+        "Cache-Control": "public, max-age=120",
+        "ETag": etag
+    }
+
+    return ResponseHelper.success(task, "Task retrieved successfully", 200, headers)
 
 # --- 3. TẠO MỚI (POST /tasks) ---
 @app.route('/tasks', methods=['POST'])
@@ -71,7 +101,8 @@ def update_task(task_id):
     data = request.get_json() or {}
     task['name'] = data.get('name', task['name'])
     task['status'] = data.get('status', task['status'])
-    return jsonify(task), 200
+
+    return ResponseHelper.success(task, "Task updated successfully", 200)
 
 # --- 5. XÓA (DELETE /tasks/<id>) ---
 @app.route('/tasks/<int:task_id>', methods=['DELETE'])
@@ -87,7 +118,7 @@ def delete_task(task_id):
     # Nếu tồn tại thì xóa
     tasks.remove(task)
 
-    return ResponseHelper.error(None, "Deleted successfully")
+    return ResponseHelper.success(None, "Deleted successfully", 200)
 
 if __name__ == '__main__':
     app.run(port=5000)

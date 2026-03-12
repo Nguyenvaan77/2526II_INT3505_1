@@ -1,19 +1,33 @@
 from flask import jsonify
 
 class ResponseHelper:
+
     @staticmethod
-    def success(data=None, message="OK", status=200):
-        """Phản hồi khi thành công"""
-        return jsonify({
+    def success(data=None, message="OK", status=200, headers=None):
+        response = jsonify({
             "status": status,
             "message": message,
             "data": data
-        }), status
+        })
+
+        response.status_code = status
+
+        if headers:
+            response.headers.extend(headers)
+
+        return response
+
 
     @staticmethod
-    def error(message="Bad Request", code=400):
-        """Phản hồi khi có lỗi"""
-        return jsonify({
+    def error(message="Bad Request", code=400, headers=None):
+        response = jsonify({
             "code": code,
             "message": message
-        }), code
+        })
+
+        response.status_code = code
+
+        if headers:
+            response.headers.extend(headers)
+
+        return response
