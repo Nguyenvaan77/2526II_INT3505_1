@@ -1,6 +1,11 @@
 from flask import Flask, jsonify, request
+from response_helper import ResponseHelper
 
 app = Flask(__name__)
+
+# Dùng Danh từ (Resources): Tất cả URL chỉ xoay quanh danh từ /tasks. Hành động được xác định bằng phương thức HTTP (GET, POST, PUT, DELETE).
+# Đúng mã HTTP Status Code: Trả về 201 khi tạo mới thành công, 404 khi không tìm thấy tài nguyên thay vì chỉ trả về text thông thường.
+# Cấu trúc URL chuẩn: /tasks/<id> dùng cho cả lấy chi tiết, cập nhật và xóa.
 
 # Dữ liệu nằm ở Server
 tasks = [
@@ -9,22 +14,21 @@ tasks = [
 ]
 
 # --- 1. LẤY DANH SÁCH (GET /tasks) ---
-@app.route('/get-all-tasks-now', methods=['GET']) #Url chứa động từ thay vì danh từ
+@app.route('/tasks', methods=['GET'])
 def get_tasks():
-    #Trả về JSON thay vì HTML
-    #Biến Object List thành JSON để trả về Client
-    return jsonify(tasks)
+    # Trả về mã 200 OK
+    return ResponseHelper.success(tasks,"OK", 200)
 
 # --- 2. LẤY CHI TIẾT 1 TASK (GET /tasks/<id>) ---
-@app.route('/get-one-task/<int:task_id>', methods=['GET'])
+@app.route('/tasks/<int:task_id>', methods=['GET'])
 def get_one_task(task_id):
     task = next((t for t in tasks if t['id'] == task_id), None)
     if task:
-        return jsonify(task)
-    return jsonify({"error": "Task not found"})
+        return ResponseHelper.success(task, "Found task", 200)
+    return ResponseHelper.error("Task not found", 404)
 
-# --- 3. TẠO MỚI (POST /create-task) --- nhẽ ra là PUT 
-@app.route('/create-task', methods=['POST'])
+# --- 3. TẠO MỚI (POST /tasks) ---
+@app.route('/tasks', methods=['POST'])
 def create_task():
     # Lấy dữ liệu từ body của request
     data = request.get_json()
@@ -36,37 +40,34 @@ def create_task():
     }
     tasks.append(new_task)
 
-    return jsonify(new_task)
+    return ResponseHelper.success(new_task, "Created successfully", 201)
 
-# --- 4. CẬP NHÂT (PUT /update-task-by-id?id=1) ---
-@app.route('/update-task-by-id/<int:task_id>', methods=['PUT']) 
+# --- 4. CẬP NHẬT (PUT /tasks/<id>) ---
+@app.route('/tasks/<int:task_id>', methods=['PUT'])
 def update_task(task_id):
     task = next((t for t in tasks if t['id'] == task_id), None)
     if not task:
-        return jsonify({"error": "Task not found"})
+        return jsonify({"error": "Task not found"}), 404
     
     data = request.get_json() or {}
     task['name'] = data.get('name', task['name'])
     task['status'] = data.get('status', task['status'])
-    return jsonify(task)
+    return jsonify(task), 200
 
-# --- 5. XÓA (DELETE /delete-task-by-id/<id>) ---
-@app.route('/delete-task-by-id/<int:task_id>', methods=['DELETE'])
+# --- 5. XÓA (DELETE /tasks/<id>) ---
+@app.route('/tasks/<int:task_id>', methods=['DELETE'])
 def delete_task(task_id):
     # Tìm task
     task = next((t for t in tasks if t['id'] == task_id), None)
 
     # Nếu không tồn tại
     if not task:
-        return jsonify({"error": "Task not found"})
+        return ResponseHelper.error("Task not found", 404)
 
     # Nếu tồn tại thì xóa
     tasks.remove(task)
 
-    return jsonify({
-        "message": "Task deleted successfully",
-        "deleted_task": task
-    })
+    return ResponseHelper.error(None, "Deleted successfully")
 
 if __name__ == '__main__':
     app.run(port=5000)
