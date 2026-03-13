@@ -1,16 +1,78 @@
-from flask import Flask, jsonify, request
-from response_helper import ResponseHelper
-from functools import wraps # Dùng để tạo decorator
 import hashlib
-import json
+from flask_cors import CORS
+import jwt
+import datetime
+from flask import Flask, json, jsonify, request
+from response_helper import ResponseHelper
+from functools import wraps
+
 
 app = Flask(__name__)
+CORS(app)
+
+SECRET_KEY = "my-super-secret-key"
+
+@app.route('/login', methods=['POST'])
+def login():
+
+    data = request.get_json()
+
+    username = data.get("username")
+    password = data.get("password")
+
+    # Giả lập kiểm tra user (thực tế sẽ query DB)
+    if username == "admin" and password == "123456":
+
+        payload = {
+            "user": username,
+            "exp": datetime.datetime.utcnow() + datetime.timedelta(hours=1)
+        }
+
+        token = jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+        return ResponseHelper.success(
+            {"token": token},
+            "Login successful",
+            200
+        )
+
+    return ResponseHelper.error("Invalid username or password", 401)
 
 # Giả lập một Database API Keys (Thực tế sẽ lưu trong DB)
 VALID_API_KEYS = ["gemini-secret-key-123", "user-token-abc"]
 
+def require_jwt(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+
+        auth_header = request.headers.get("Authorization")
+
+        if not auth_header:
+            return ResponseHelper.error("Token missing", 401)
+
+        try:
+            token = auth_header.split(" ")[1]
+
+            decoded = jwt.decode(
+                token,
+                SECRET_KEY,
+                algorithms=["HS256"]
+            )
+
+            request.user = decoded["user"]
+
+        except jwt.ExpiredSignatureError:
+            return ResponseHelper.error("Token expired", 401)
+
+        except jwt.InvalidTokenError:
+            return ResponseHelper.error("Invalid token", 401)
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
 # --- 🛡️ BỘ LỌC STATELESS (Decorator) ---
-def require_api_key(f):
+def require_api_key(f):  
     @wraps(f)
     def decorated_function(*args, **kwargs):
         # Lấy token từ Header 'X-API-KEY'
@@ -39,7 +101,7 @@ def generate_etag(data):
 
 # --- 1. LẤY DANH SÁCH (GET /tasks) ---
 @app.route('/tasks', methods=['GET'])
-@require_api_key #Phải có key mới truy cập được 
+@require_jwt
 def get_tasks():
     etag = generate_etag(tasks)
 
@@ -55,7 +117,7 @@ def get_tasks():
 
 # --- 2. LẤY CHI TIẾT 1 TASK (GET /tasks/<id>) ---
 @app.route('/tasks/<int:task_id>', methods=['GET'])
-@require_api_key
+@require_jwt
 def get_one_task(task_id):
     task = next((t for t in tasks if t["id"] == task_id), None)
 
@@ -76,7 +138,7 @@ def get_one_task(task_id):
 
 # --- 3. TẠO MỚI (POST /tasks) ---
 @app.route('/tasks', methods=['POST'])
-@require_api_key
+@require_jwt
 def create_task():
     # Lấy dữ liệu từ body của request
     data = request.get_json()
@@ -92,7 +154,7 @@ def create_task():
 
 # --- 4. CẬP NHẬT (PUT /tasks/<id>) ---
 @app.route('/tasks/<int:task_id>', methods=['PUT'])
-@require_api_key
+@require_jwt
 def update_task(task_id):
     task = next((t for t in tasks if t['id'] == task_id), None)
     if not task:
@@ -106,7 +168,7 @@ def update_task(task_id):
 
 # --- 5. XÓA (DELETE /tasks/<id>) ---
 @app.route('/tasks/<int:task_id>', methods=['DELETE'])
-@require_api_key
+@require_jwt
 def delete_task(task_id):
     # Tìm task
     task = next((t for t in tasks if t['id'] == task_id), None)
