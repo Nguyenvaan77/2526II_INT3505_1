@@ -5,10 +5,33 @@ import datetime
 from flask import Flask, json, jsonify, request
 from response_helper import ResponseHelper
 from functools import wraps
-
+from flasgger import Swagger
+import yaml
 
 app = Flask(__name__)
 CORS(app)
+
+with open("openapi.yaml", "r", encoding="utf-8") as f:
+    template = yaml.safe_load(f)
+
+swagger_config = {
+    "headers": [],
+    "specs": [
+        {
+            "endpoint": 'apispec_1',
+            "route": '/apispec_1.json',
+            "rule_filter": lambda rule: True,  # all in
+            "model_filter": lambda tag: True,  # all in
+        }
+    ],
+    "static_url_path": "/flasgger_static",
+    "swagger_ui": True,
+    "specs_route": "/docs/",
+    "openapi": "3.0.0", # Ép buộc giao diện sử dụng chuẩn 3.0
+}
+
+# Khởi tạo Swagger với template đã load từ file yaml
+swagger = Swagger(app, template=template, config=swagger_config)
 
 SECRET_KEY = "my-super-secret-key"
 
@@ -158,7 +181,7 @@ def create_task():
 def update_task(task_id):
     task = next((t for t in tasks if t['id'] == task_id), None)
     if not task:
-        return jsonify({"error": "Task not found"}), 404
+        return ResponseHelper.error("Task not found", 404)
     
     data = request.get_json() or {}
     task['name'] = data.get('name', task['name'])
