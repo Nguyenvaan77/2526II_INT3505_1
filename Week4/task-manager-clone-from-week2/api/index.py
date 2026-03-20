@@ -3,7 +3,7 @@ from flask_cors import CORS
 import jwt
 import datetime
 from flask import Flask, json, jsonify, request
-from response_helper import ResponseHelper
+from api.response_helper import ResponseHelper
 from functools import wraps
 from flasgger import Swagger
 import yaml
