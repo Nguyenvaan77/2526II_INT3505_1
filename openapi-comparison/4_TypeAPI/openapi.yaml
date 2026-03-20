@@ -1,0 +1,336 @@
+openapi: 3.0.0
+info:
+  title: Library Management API
+  description: |
+    API quản lý thư viện mini cho phép quản lý sách với các thông tin cơ bản.
+
+    ## Features
+    - Lấy danh sách tất cả sách
+    - Lấy thông tin chi tiết một cuốn sách
+    - Tạo sách mới
+    - Cập nhật thông tin sách
+    - Xóa sách
+  version: 1.0.0
+  contact:
+    name: Library Team
+    email: library@example.com
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: http://localhost:5000
+    description: Production server
+
+tags:
+  - name: Books
+    description: Các thao tác quản lý sách
+
+components:
+  schemas:
+    Book:
+      type: object
+      required:
+        - name
+        - author_name
+        - description
+      properties:
+        id:
+          type: string
+          description: ID duy nhất của sách
+          example: "1"
+        name:
+          type: string
+          description: Tên sách
+          minLength: 1
+          maxLength: 255
+          example: "Lập trình Python cơ bản"
+        author_name:
+          type: string
+          description: Tên tác giả
+          minLength: 1
+          maxLength: 255
+          example: "Nguyễn Văn A"
+        description:
+          type: string
+          description: Mô tả sách
+          maxLength: 1000
+          example: "Cuốn sách hướng dẫn lập trình Python cho người mới bắt đầu"
+        created_at:
+          type: string
+          format: date-time
+          description: Thời gian tạo
+          example: "2024-01-15T10:30:00Z"
+        updated_at:
+          type: string
+          format: date-time
+          description: Thời gian cập nhật cuối cùng
+          example: "2024-01-20T15:45:00Z"
+
+  responses:
+    NotFound:
+      description: Không tìm thấy tài nguyên
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Book not found"
+              status:
+                type: number
+                example: 404
+
+    BadRequest:
+      description: Yêu cầu không hợp lệ
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Invalid request"
+              details:
+                type: array
+                items:
+                  type: string
+
+    ServerError:
+      description: Lỗi máy chủ nội bộ
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              error:
+                type: string
+                example: "Internal server error"
+              status:
+                type: number
+                example: 500
+
+paths:
+  /books:
+    get:
+      tags:
+        - Books
+      summary: Lấy danh sách tất cả sách
+      description: Trả về danh sách toàn bộ sách trong thư viện
+      operationId: getAllBooks
+      parameters:
+        - name: skip
+          in: query
+          description: Số sách bỏ qua (pagination)
+          schema:
+            type: integer
+            default: 0
+            minimum: 0
+        - name: limit
+          in: query
+          description: Số sách trả về (pagination)
+          schema:
+            type: integer
+            default: 10
+            minimum: 1
+        - name: sort_by
+          in: query
+          description: Sắp xếp theo trường (name, author_name, created_at)
+          schema:
+            type: string
+            enum: [name, author_name, created_at]
+            default: created_at
+      responses:
+        "200":
+          description: Danh sách sách thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Book"
+                  total:
+                    type: integer
+                    example: 25
+                  skip:
+                    type: integer
+                    example: 0
+                  limit:
+                    type: integer
+                    example: 10
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+    post:
+      tags:
+        - Books
+      summary: Tạo sách mới
+      description: Tạo một cuốn sách mới trong thư viện
+      operationId: createBook
+      requestBody:
+        required: true
+        description: Thông tin sách cần tạo
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+                - author_name
+                - description
+              properties:
+                name:
+                  type: string
+                  description: Tên sách
+                  minLength: 1
+                  maxLength: 255
+                  example: "Clean Code"
+                author_name:
+                  type: string
+                  description: Tên tác giả
+                  minLength: 1
+                  maxLength: 255
+                  example: "Robert C. Martin"
+                description:
+                  type: string
+                  description: Mô tả sách
+                  maxLength: 1000
+                  example: "Hướng dẫn viết code sạch"
+      responses:
+        "201":
+          description: Tạo sách thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Book"
+                  message:
+                    type: string
+                    example: "Book created successfully"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+  /books/{id}:
+    get:
+      tags:
+        - Books
+      summary: Lấy thông tin một cuốn sách
+      description: Trả về chi tiết của một cuốn sách theo ID
+      operationId: getBook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của sách cần lấy
+          schema:
+            type: string
+          example: "1"
+      responses:
+        "200":
+          description: Thông tin sách
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Book"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+    put:
+      tags:
+        - Books
+      summary: Cập nhật thông tin sách
+      description: Cập nhật thông tin của một cuốn sách theo ID
+      operationId: updateBook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của sách cần cập nhật
+          schema:
+            type: string
+          example: "1"
+      requestBody:
+        required: true
+        description: Thông tin sách cập nhật
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  description: Tên sách
+                  minLength: 1
+                  maxLength: 255
+                author_name:
+                  type: string
+                  description: Tên tác giả
+                  minLength: 1
+                  maxLength: 255
+                description:
+                  type: string
+                  description: Mô tả sách
+                  maxLength: 1000
+      responses:
+        "200":
+          description: Cập nhật sách thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Book"
+                  message:
+                    type: string
+                    example: "Book updated successfully"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"
+
+    delete:
+      tags:
+        - Books
+      summary: Xóa sách
+      description: Xóa một cuốn sách từ thư viện theo ID
+      operationId: deleteBook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: ID của sách cần xóa
+          schema:
+            type: string
+          example: "1"
+      responses:
+        "200":
+          description: Xóa sách thành công
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "Book deleted successfully"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "500":
+          $ref: "#/components/responses/ServerError"

@@ -1,0 +1,366 @@
+#%RAML 1.0
+title: Library Management API
+version: 1.0.0
+baseUri: http://localhost:3000
+
+documentation:
+  - title: Library Management System
+    content: |
+      Một ứng dụng quản lý thư viện mini cho phép quản lý sách với các thông tin cơ bản.
+
+      ## Tính năng:
+      - Lấy danh sách tất cả sách
+      - Lấy thông tin chi tiết một cuốn sách
+      - Tạo sách mới
+      - Cập nhật thông tin sách
+      - Xóa sách
+
+protocols: [HTTP]
+mediaType: application/json
+
+types:
+  Book:
+    type: object
+    properties:
+      id:
+        type: string
+        description: ID duy nhất của sách
+        example: "1"
+      name:
+        type: string
+        description: Tên sách
+        minLength: 1
+        maxLength: 255
+        example: "Lập trình Python cơ bản"
+        required: true
+      author_name:
+        type: string
+        description: Tên tác giả
+        minLength: 1
+        maxLength: 255
+        example: "Nguyễn Văn A"
+        required: true
+      description:
+        type: string
+        description: Mô tả sách
+        maxLength: 1000
+        example: "Cuốn sách hướng dẫn lập trình Python"
+        required: true
+      created_at:
+        type: datetime
+        description: Thời gian tạo
+        example: "2024-01-15T10:30:00Z"
+      updated_at:
+        type: datetime
+        description: Thời gian cập nhật cuối cùng
+        example: "2024-01-20T15:45:00Z"
+
+  BookList:
+    type: object
+    properties:
+      data:
+        type: Book[]
+        description: Danh sách sách
+      total:
+        type: integer
+        description: Tổng số sách
+        example: 25
+      skip:
+        type: integer
+        description: Số sách bỏ qua
+        example: 0
+      limit:
+        type: integer
+        description: Số sách trả về
+        example: 10
+
+  BookResponse:
+    type: object
+    properties:
+      data:
+        type: Book
+      message:
+        type: string
+        example: "Book created successfully"
+
+  Error:
+    type: object
+    properties:
+      error:
+        type: string
+        description: Thông báo lỗi
+      status:
+        type: integer
+        description: HTTP status code
+      details:
+        type: string[]
+        description: Chi tiết lỗi
+
+  CreateBookRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        required: true
+        minLength: 1
+        maxLength: 255
+        example: "Clean Code"
+      author_name:
+        type: string
+        required: true
+        minLength: 1
+        maxLength: 255
+        example: "Robert C. Martin"
+      description:
+        type: string
+        required: true
+        maxLength: 1000
+        example: "Hướng dẫn viết code sạch"
+
+  UpdateBookRequest:
+    type: object
+    properties:
+      name:
+        type: string
+        minLength: 1
+        maxLength: 255
+      author_name:
+        type: string
+        minLength: 1
+        maxLength: 255
+      description:
+        type: string
+        maxLength: 1000
+
+# Resources
+
+/books:
+  displayName: Books Collection
+  description: Quản lý danh sách sách
+  
+  get:
+    displayName: Get All Books
+    description: Lấy danh sách tất cả sách trong thư viện
+    queryParameters:
+      skip:
+        type: integer
+        default: 0
+        minimum: 0
+        description: Số sách bỏ qua (pagination)
+        required: false
+      limit:
+        type: integer
+        default: 10
+        minimum: 1
+        description: Số sách trả về (pagination)
+        required: false
+      sort_by:
+        type: string
+        enum: [name, author_name, created_at]
+        default: created_at
+        description: Sắp xếp theo trường
+        required: false
+    responses:
+      200:
+        description: Danh sách sách thành công
+        body:
+          application/json:
+            type: BookList
+            example: |
+              {
+                "data": [
+                  {
+                    "id": "1",
+                    "name": "Clean Code",
+                    "author_name": "Robert C. Martin",
+                    "description": "Hướng dẫn viết code sạch",
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "updated_at": "2024-01-20T15:45:00Z"
+                  },
+                  {
+                    "id": "2",
+                    "name": "Design Patterns",
+                    "author_name": "Gang of Four",
+                    "description": "Sách về các design pattern",
+                    "created_at": "2024-01-16T11:00:00Z",
+                    "updated_at": "2024-01-21T16:00:00Z"
+                  }
+                ],
+                "total": 25,
+                "skip": 0,
+                "limit": 10
+              }
+      500:
+        description: Lỗi máy chủ nội bộ
+        body:
+          application/json:
+            type: Error
+            example: |
+              {
+                "error": "Internal server error",
+                "status": 500
+              }
+
+  post:
+    displayName: Create a New Book
+    description: Tạo một cuốn sách mới trong thư viện
+    body:
+      application/json:
+        type: CreateBookRequest
+        example: |
+          {
+            "name": "Game of Thrones",
+            "author_name": "George R. R. Martin",
+            "description": "Tiểu thuyết sử thi phương Tây kì vĩ"
+          }
+    responses:
+      201:
+        description: Tạo sách thành công
+        body:
+          application/json:
+            type: BookResponse
+            example: |
+              {
+                "data": {
+                  "id": "1705318200000",
+                  "name": "Game of Thrones",
+                  "author_name": "George R. R. Martin",
+                  "description": "Tiểu thuyết sử thi phương Tây kì vĩ",
+                  "created_at": "2024-01-15T10:30:00Z",
+                  "updated_at": "2024-01-15T10:30:00Z"
+                },
+                "message": "Book created successfully"
+              }
+      400:
+        description: Yêu cầu không hợp lệ
+        body:
+          application/json:
+            type: Error
+            example: |
+              {
+                "error": "Invalid request",
+                "status": 400,
+                "details": ["name is required", "author_name is required"]
+              }
+      500:
+        description: Lỗi máy chủ nội bộ
+        body:
+          application/json:
+            type: Error
+
+  /{id}:
+    displayName: Book Resource
+    description: Thao tác với một cuốn sách cụ thể
+    uriParameters:
+      id:
+        type: string
+        description: ID duy nhất của sách
+        example: "1"
+        required: true
+
+    get:
+      displayName: Get a Book
+      description: Lấy thông tin chi tiết của một cuốn sách theo ID
+      responses:
+        200:
+          description: Thông tin sách
+          body:
+            application/json:
+              type: object
+              properties:
+                data:
+                  type: Book
+              example: |
+                {
+                  "data": {
+                    "id": "1",
+                    "name": "Clean Code",
+                    "author_name": "Robert C. Martin",
+                    "description": "Hướng dẫn viết code sạch",
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "updated_at": "2024-01-20T15:45:00Z"
+                  }
+                }
+        404:
+          description: Không tìm thấy sách
+          body:
+            application/json:
+              type: Error
+              example: |
+                {
+                  "error": "Book not found",
+                  "status": 404
+                }
+        500:
+          description: Lỗi máy chủ nội bộ
+          body:
+            application/json:
+              type: Error
+
+    put:
+      displayName: Update a Book
+      description: Cập nhật thông tin của một cuốn sách theo ID
+      body:
+        application/json:
+          type: UpdateBookRequest
+          example: |
+            {
+              "name": "Clean Code - Updated Edition",
+              "description": "Hướng dẫn viết code sạch - Phiên bản cập nhật"
+            }
+      responses:
+        200:
+          description: Cập nhật sách thành công
+          body:
+            application/json:
+              type: BookResponse
+              example: |
+                {
+                  "data": {
+                    "id": "1",
+                    "name": "Clean Code - Updated Edition",
+                    "author_name": "Robert C. Martin",
+                    "description": "Hướng dẫn viết code sạch - Phiên bản cập nhật",
+                    "created_at": "2024-01-15T10:30:00Z",
+                    "updated_at": "2024-01-20T15:45:00Z"
+                  },
+                  "message": "Book updated successfully"
+                }
+        400:
+          description: Yêu cầu không hợp lệ
+          body:
+            application/json:
+              type: Error
+        404:
+          description: Không tìm thấy sách
+          body:
+            application/json:
+              type: Error
+        500:
+          description: Lỗi máy chủ nội bộ
+          body:
+            application/json:
+              type: Error
+
+    delete:
+      displayName: Delete a Book
+      description: Xóa một cuốn sách từ thư viện theo ID
+      responses:
+        200:
+          description: Xóa sách thành công
+          body:
+            application/json:
+              example: |
+                {
+                  "message": "Book deleted successfully"
+                }
+        404:
+          description: Không tìm thấy sách
+          body:
+            application/json:
+              type: Error
+        500:
+          description: Lỗi máy chủ nội bộ
+          body:
+            application/json:
+              type: Error
