@@ -205,5 +205,5 @@ def delete_task(task_id):
 
     return ResponseHelper.success(None, "Deleted successfully", 200)
 
-if __name__ == '__main__':
-    app.run(port=5000)
+# if __name__ == '__main__':
+    # app.run(port=5000)
