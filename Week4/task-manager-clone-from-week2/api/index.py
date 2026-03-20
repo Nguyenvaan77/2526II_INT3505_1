@@ -7,11 +7,16 @@ from response_helper import ResponseHelper
 from functools import wraps
 from flasgger import Swagger
 import yaml
+import os
 
 app = Flask(__name__)
 CORS(app)
 
-with open("openapi.yaml", "r", encoding="utf-8") as f:
+# Load file YAML đúng path trong serverless
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+yaml_path = os.path.join(BASE_DIR, "openapi.yaml")
+
+with open(yaml_path, "r", encoding="utf-8") as f:
     template = yaml.safe_load(f)
 
 swagger_config = {
@@ -121,6 +126,9 @@ def generate_etag(data):
         json.dumps(data, sort_keys=True).encode()
     ).hexdigest()
 
+@app.route('/')
+def home():
+    return "Flask API running on Vercel"
 
 # --- 1. LẤY DANH SÁCH (GET /tasks) ---
 @app.route('/tasks', methods=['GET'])
@@ -206,4 +214,4 @@ def delete_task(task_id):
     return ResponseHelper.success(None, "Deleted successfully", 200)
 
 # if __name__ == '__main__':
-    # app.run(port=5000)
+#     app.run(port=5000)
