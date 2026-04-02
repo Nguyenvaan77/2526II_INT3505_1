@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Library Manager</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='app.css') }}">
+</head>
+<body>
+    <header class="hero">
+        <div>
+            <p class="eyebrow">Library Management Dashboard</p>
+            <h1>Quản lí author, book, member và loan</h1>
+            <p class="hero-copy">
+                Giao diện quản trị dùng trực tiếp các API hiện có, hỗ trợ thêm, sửa, xoá và phân trang theo số lượng bản ghi mỗi trang.
+            </p>
+        </div>
+    </header>
+
+    <main class="dashboard">
+        <section class="entity-section" id="authors-section" data-entity="authors">
+            <div class="section-heading">
+                <div>
+                    <p class="section-label">Section 01</p>
+                    <h2>Authors</h2>
+                </div>
+                <div class="toolbar">
+                    <label>
+                        Limit
+                        <select class="limit-select" data-entity="authors">
+                            <option value="3">3</option>
+                            <option value="5" selected>5</option>
+                            <option value="10">10</option>
+                        </select>
+                    </label>
+                    <button type="button" class="refresh-btn" data-entity="authors">Refresh</button>
+                </div>
+            </div>
+
+            <form class="entity-form" data-entity="authors">
+                <input type="hidden" name="id">
+                <div class="form-grid single">
+                    <label>
+                        Tên author
+                        <input type="text" name="name" placeholder="Nhập tên author" required>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Lưu author</button>
+                    <button type="button" class="secondary reset-form-btn">Tạo mới</button>
+                </div>
+            </form>
+
+            <div class="status-message" data-entity-status="authors"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="authors-table-body"></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="authors-pagination"></div>
+        </section>
+
+        <section class="entity-section" id="books-section" data-entity="books">
+            <div class="section-heading">
+                <div>
+                    <p class="section-label">Section 02</p>
+                    <h2>Books</h2>
+                </div>
+                <div class="toolbar">
+                    <label>
+                        Limit
+                        <select class="limit-select" data-entity="books">
+                            <option value="3">3</option>
+                            <option value="5" selected>5</option>
+                            <option value="10">10</option>
+                        </select>
+                    </label>
+                    <button type="button" class="refresh-btn" data-entity="books">Refresh</button>
+                </div>
+            </div>
+
+            <form class="entity-form" data-entity="books">
+                <input type="hidden" name="id">
+                <div class="form-grid">
+                    <label>
+                        Tên sách
+                        <input type="text" name="title" placeholder="Nhập tên sách" required>
+                    </label>
+                    <label>
+                        Author ID
+                        <input type="number" name="author_id" min="1" placeholder="1" required>
+                    </label>
+                    <label>
+                        Năm xuất bản
+                        <input type="number" name="year" min="0" placeholder="2024" required>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Lưu book</button>
+                    <button type="button" class="secondary reset-form-btn">Tạo mới</button>
+                </div>
+            </form>
+
+            <div class="status-message" data-entity-status="books"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Title</th>
+                            <th>Author ID</th>
+                            <th>Year</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="books-table-body"></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="books-pagination"></div>
+        </section>
+
+        <section class="entity-section" id="members-section" data-entity="members">
+            <div class="section-heading">
+                <div>
+                    <p class="section-label">Section 03</p>
+                    <h2>Members</h2>
+                </div>
+                <div class="toolbar">
+                    <label>
+                        Limit
+                        <select class="limit-select" data-entity="members">
+                            <option value="3">3</option>
+                            <option value="5" selected>5</option>
+                            <option value="10">10</option>
+                        </select>
+                    </label>
+                    <button type="button" class="refresh-btn" data-entity="members">Refresh</button>
+                </div>
+            </div>
+
+            <form class="entity-form" data-entity="members">
+                <input type="hidden" name="id">
+                <div class="form-grid single">
+                    <label>
+                        Tên member
+                        <input type="text" name="name" placeholder="Nhập tên member" required>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Lưu member</button>
+                    <button type="button" class="secondary reset-form-btn">Tạo mới</button>
+                </div>
+            </form>
+
+            <div class="status-message" data-entity-status="members"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Name</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="members-table-body"></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="members-pagination"></div>
+        </section>
+
+        <section class="entity-section" id="loans-section" data-entity="loans">
+            <div class="section-heading">
+                <div>
+                    <p class="section-label">Section 04</p>
+                    <h2>Loans</h2>
+                </div>
+                <div class="toolbar">
+                    <label>
+                        Limit
+                        <select class="limit-select" data-entity="loans">
+                            <option value="3">3</option>
+                            <option value="5" selected>5</option>
+                            <option value="10">10</option>
+                        </select>
+                    </label>
+                    <button type="button" class="refresh-btn" data-entity="loans">Refresh</button>
+                </div>
+            </div>
+
+            <form class="entity-form" data-entity="loans">
+                <input type="hidden" name="id">
+                <div class="form-grid">
+                    <label>
+                        Book ID
+                        <input type="number" name="book_id" min="1" placeholder="1" required>
+                    </label>
+                    <label>
+                        Member ID
+                        <input type="number" name="member_id" min="1" placeholder="1" required>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="submit">Lưu loan</button>
+                    <button type="button" class="secondary reset-form-btn">Tạo mới</button>
+                </div>
+            </form>
+
+            <div class="status-message" data-entity-status="loans"></div>
+            <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Book ID</th>
+                            <th>Member ID</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="loans-table-body"></tbody>
+                </table>
+            </div>
+            <div class="pagination" id="loans-pagination"></div>
+        </section>
+    </main>
+
+    <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>
