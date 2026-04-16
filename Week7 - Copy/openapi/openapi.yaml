@@ -1,0 +1,248 @@
+
+openapi: 3.0.0
+info:
+  title: Product Management API
+  version: 1.0.0
+  description: API quản lý User và Product (CRUD cơ bản, không bảo mật)
+
+servers:
+  - url: http://localhost:5000
+
+paths:
+
+  /users:
+    get:
+      summary: Lấy danh sách user
+      responses:
+        '200':
+          description: Danh sách user
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+    post:
+      summary: Tạo user mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserCreate'
+      responses:
+        '201':
+          description: Tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /users/{userId}:
+    get:
+      summary: Lấy thông tin user theo ID
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Thông tin user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Không tìm thấy user
+
+    put:
+      summary: Cập nhật user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserUpdate'
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+    delete:
+      summary: Xóa user
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Xóa thành công
+
+  /products:
+    get:
+      summary: Lấy danh sách product
+      responses:
+        '200':
+          description: Danh sách product
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Product'
+
+    post:
+      summary: Tạo product mới
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductCreate'
+      responses:
+        '201':
+          description: Tạo thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+  /products/{productId}:
+    get:
+      summary: Lấy thông tin product theo ID
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Thông tin product
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          description: Không tìm thấy product
+
+    put:
+      summary: Cập nhật product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProductUpdate'
+      responses:
+        '200':
+          description: Cập nhật thành công
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+
+    delete:
+      summary: Xóa product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '204':
+          description: Xóa thành công
+
+components:
+  schemas:
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Nguyen Van A
+        email:
+          type: string
+          example: a@example.com
+
+    UserCreate:
+      type: object
+      required: [name, email]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Laptop
+        price:
+          type: number
+          format: float
+          example: 1500.0
+        ownerId:
+          type: integer
+          example: 1
+
+    ProductCreate:
+      type: object
+      required: [name, price]
+      properties:
+        name:
+          type: string
+        price:
+          type: number
+          format: float
+        ownerId:
+          type: integer
+
+    ProductUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        price:
+          type: number
+          format: float
+        ownerId:
+          type: integer

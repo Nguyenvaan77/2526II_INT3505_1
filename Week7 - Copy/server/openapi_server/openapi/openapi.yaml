@@ -1,0 +1,310 @@
+openapi: 3.0.0
+info:
+  description: "API quản lý User và Product (CRUD cơ bản, không bảo mật)"
+  title: Product Management API
+  version: 1.0.0
+servers:
+- url: http://localhost:5000
+paths:
+  /products:
+    get:
+      operationId: products_get
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/Product"
+                type: array
+          description: Danh sách product
+      summary: Lấy danh sách product
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+    post:
+      operationId: products_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductCreate"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+          description: Tạo thành công
+      summary: Tạo product mới
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+  /products/{productId}:
+    delete:
+      operationId: products_product_id_delete
+      parameters:
+      - explode: false
+        in: path
+        name: productId
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "204":
+          description: Xóa thành công
+      summary: Xóa product
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+    get:
+      operationId: products_product_id_get
+      parameters:
+      - explode: false
+        in: path
+        name: productId
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+          description: Thông tin product
+        "404":
+          description: Không tìm thấy product
+      summary: Lấy thông tin product theo ID
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+    put:
+      operationId: products_product_id_put
+      parameters:
+      - explode: false
+        in: path
+        name: productId
+        required: true
+        schema:
+          type: integer
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+          description: Cập nhật thành công
+      summary: Cập nhật product
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+  /users:
+    get:
+      operationId: users_get
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                items:
+                  $ref: "#/components/schemas/User"
+                type: array
+          description: Danh sách user
+      summary: Lấy danh sách user
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+    post:
+      operationId: users_post
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreate"
+        required: true
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+          description: Tạo thành công
+      summary: Tạo user mới
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+  /users/{userId}:
+    delete:
+      operationId: users_user_id_delete
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "204":
+          description: Xóa thành công
+      summary: Xóa user
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+    get:
+      operationId: users_user_id_get
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: integer
+        style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+          description: Thông tin user
+        "404":
+          description: Không tìm thấy user
+      summary: Lấy thông tin user theo ID
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+    put:
+      operationId: users_user_id_put
+      parameters:
+      - explode: false
+        in: path
+        name: userId
+        required: true
+        schema:
+          type: integer
+        style: simple
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+        required: true
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+          description: Cập nhật thành công
+      summary: Cập nhật user
+      x-openapi-router-controller: openapi_server.controllers.default_controller
+components:
+  schemas:
+    User:
+      example:
+        name: Nguyen Van A
+        id: 1
+        email: a@example.com
+      properties:
+        id:
+          example: 1
+          title: id
+          type: integer
+        name:
+          example: Nguyen Van A
+          title: name
+          type: string
+        email:
+          example: a@example.com
+          title: email
+          type: string
+      title: User
+      type: object
+    UserCreate:
+      example:
+        name: name
+        email: email
+      properties:
+        name:
+          title: name
+          type: string
+        email:
+          title: email
+          type: string
+      required:
+      - email
+      - name
+      title: UserCreate
+      type: object
+    UserUpdate:
+      example:
+        name: name
+        email: email
+      properties:
+        name:
+          title: name
+          type: string
+        email:
+          title: email
+          type: string
+      title: UserUpdate
+      type: object
+    Product:
+      example:
+        price: 1500.0
+        name: Laptop
+        id: 1
+        ownerId: 1
+      properties:
+        id:
+          example: 1
+          title: id
+          type: integer
+        name:
+          example: Laptop
+          title: name
+          type: string
+        price:
+          example: 1500.0
+          format: float
+          title: price
+          type: number
+        ownerId:
+          example: 1
+          title: ownerId
+          type: integer
+      title: Product
+      type: object
+    ProductCreate:
+      example:
+        price: 0.8008282
+        name: name
+        ownerId: 6
+      properties:
+        name:
+          title: name
+          type: string
+        price:
+          format: float
+          title: price
+          type: number
+        ownerId:
+          title: ownerId
+          type: integer
+      required:
+      - name
+      - price
+      title: ProductCreate
+      type: object
+    ProductUpdate:
+      example:
+        price: 0.8008282
+        name: name
+        ownerId: 6
+      properties:
+        name:
+          title: name
+          type: string
+        price:
+          format: float
+          title: price
+          type: number
+        ownerId:
+          title: ownerId
+          type: integer
+      title: ProductUpdate
+      type: object
