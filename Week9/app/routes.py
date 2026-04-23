@@ -15,6 +15,7 @@ def register_routes(app):
         from app.services import users, tasks
         users.clear()
         tasks.clear()
+        print("RESET DONE:", users, tasks)
         return {"message": "reset done"}
 
     @app.route("/users", methods=["POST"])
