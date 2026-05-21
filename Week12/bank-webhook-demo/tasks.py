@@ -1,16 +1,16 @@
 from celery import Celery
 import requests
 import json
-import hashlib
 import hmac
+import hashlib
 
 celery = Celery(
     "tasks",
     broker="redis://localhost:6379/0"
 )
 
-WEBHOOK_URL = "http://localhost:6000/webhooks/events"
-WEBHOOK_SECRET = "super-secret-key"
+WEBHOOK_URL = "http://localhost:7000/webhooks/email"
+WEBHOOK_SECRET = "email-secret-key"
 
 
 def generate_signature(payload):
@@ -28,7 +28,7 @@ def generate_signature(payload):
     retry_backoff=True,
     max_retries=5
 )
-def send_webhook_task(self, event):
+def send_email_webhook_task(self, event):
 
     payload = json.dumps(event)
 
@@ -46,7 +46,7 @@ def send_webhook_task(self, event):
         timeout=5
     )
 
-    print("Webhook sent")
+    print("\nWebhook Email Sent")
     print(response.status_code)
 
     return response.status_code

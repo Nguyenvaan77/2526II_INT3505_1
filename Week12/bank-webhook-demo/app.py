@@ -1,75 +1,149 @@
 from flask import Flask, request, jsonify
-from tasks import send_webhook_task
+from tasks import send_email_webhook_task
 import uuid
 from datetime import datetime
 
 app = Flask(__name__)
 
-customers = {}
-accounts = {}
+users = {}
+tasks_db = {}
 
-@app.route("/customers", methods=["POST"])
-def create_customer():
+# =========================
+# USER APIs
+# =========================
+
+@app.route("/users", methods=["POST"])
+def create_user():
 
     data = request.json
 
-    customer_id = str(uuid.uuid4())
+    user_id = str(uuid.uuid4())
 
-    customer = {
-        "customer_id": customer_id,
+    user = {
+        "user_id": user_id,
         "name": data["name"],
         "email": data["email"]
     }
 
-    customers[customer_id] = customer
+    users[user_id] = user
 
-    # =========================
-    # Create Event
-    # =========================
-
-    event = {
-        "event_id": str(uuid.uuid4()),
-        "event_type": "customer_registered",
-        "timestamp": datetime.utcnow().isoformat(),
-        "data": customer
-    }
-
-    # =========================
-    # PUSH TO QUEUE
-    # =========================
-
-    send_webhook_task.delay(event)
-
-    return jsonify(customer), 201
+    return jsonify(user), 201
 
 
-@app.route("/accounts", methods=["POST"])
-def create_account():
+# =========================
+# TASK APIs
+# =========================
+
+@app.route("/tasks", methods=["POST"])
+def create_task():
 
     data = request.json
 
-    customer_id = data["customer_id"]
+    user_id = data["user_id"]
 
-    account_id = str(uuid.uuid4())
+    if user_id not in users:
+        return jsonify({
+            "error": "User not found"
+        }), 404
 
-    account = {
-        "account_id": account_id,
-        "customer_id": customer_id,
-        "balance": 0
+    task_id = str(uuid.uuid4())
+
+    task = {
+        "task_id": task_id,
+        "title": data["title"],
+        "status": "TODO",
+        "user_id": user_id
     }
 
-    accounts[account_id] = account
+    tasks_db[task_id] = task
+
+    print("Created New Task Successfully")
+
+    # =========================
+    # EVENT
+    # =========================
 
     event = {
         "event_id": str(uuid.uuid4()),
-        "event_type": "account_created",
+        "event_type": "task_created",
         "timestamp": datetime.utcnow().isoformat(),
-        "data": account
+        "user": users[user_id],
+        "task": task
     }
 
-    send_webhook_task.delay(event)
+    # =========================
+    # ASYNC TASK
+    # =========================
 
-    return jsonify(account), 201
+    send_email_webhook_task.delay(event)
+
+    return jsonify(task), 201
+
+
+@app.route("/tasks/<task_id>", methods=["PUT"])
+def update_task(task_id):
+
+    if task_id not in tasks_db:
+        return jsonify({
+            "error": "Task not found"
+        }), 404
+
+    data = request.json
+
+    tasks_db[task_id]["title"] = data.get(
+        "title",
+        tasks_db[task_id]["title"]
+    )
+
+    tasks_db[task_id]["status"] = data.get(
+        "status",
+        tasks_db[task_id]["status"]
+    )
+
+    task = tasks_db[task_id]
+
+    user = users[task["user_id"]]
+
+    event = {
+        "event_id": str(uuid.uuid4()),
+        "event_type": "task_updated",
+        "timestamp": datetime.utcnow().isoformat(),
+        "user": user,
+        "task": task
+    }
+
+    send_email_webhook_task.delay(event)
+
+    return jsonify(task)
+
+
+@app.route("/tasks/<task_id>", methods=["DELETE"])
+def delete_task(task_id):
+
+    if task_id not in tasks_db:
+        return jsonify({
+            "error": "Task not found"
+        }), 404
+
+    task = tasks_db[task_id]
+
+    user = users[task["user_id"]]
+
+    del tasks_db[task_id]
+
+    event = {
+        "event_id": str(uuid.uuid4()),
+        "event_type": "task_deleted",
+        "timestamp": datetime.utcnow().isoformat(),
+        "user": user,
+        "task": task
+    }
+
+    send_email_webhook_task.delay(event)
+
+    return jsonify({
+        "message": "Task deleted"
+    })
 
 
 if __name__ == "__main__":

@@ -1,12 +1,13 @@
 from flask import Flask, request, jsonify
 import hashlib
 import hmac
-
+import time
 app = Flask(__name__)
 
-WEBHOOK_SECRET = "super-secret-key"
+WEBHOOK_SECRET = "email-secret-key"
 
 processed_events = set()
+
 
 def verify_signature(payload, signature):
 
@@ -21,8 +22,10 @@ def verify_signature(payload, signature):
         signature
     )
 
-@app.route("/webhooks/events", methods=["POST"])
-def receive_webhook():
+
+@app.route("/webhooks/email", methods=["POST"])
+def receive_email_webhook():
+    print("Email Service ĐÃ NHẬN ĐƯỢC EMAIL")
 
     payload = request.data
 
@@ -46,12 +49,37 @@ def receive_webhook():
 
     processed_events.add(event_id)
 
-    print("\nEVENT RECEIVED")
-    print(event)
+    event_type = event["event_type"]
+
+    user = event["user"]
+    task = event["task"]
+
+    print("ĐỢI 10S")
+
+
+    time.sleep(10)
+
+    print("HẾT THỜI GIAN ĐỢI 10S")
+
+    print("\n========================")
+    print("EMAIL SERVICE")
+    print("========================")
+
+    print("TO:", user["email"])
+
+    if event_type == "task_created":
+        print(f"EMAIL: Task created -> {task['title']}")
+
+    elif event_type == "task_updated":
+        print(f"EMAIL: Task updated -> {task['title']}")
+
+    elif event_type == "task_deleted":
+        print(f"EMAIL: Task deleted -> {task['title']}")
 
     return jsonify({
-        "status": "ok"
+        "status": "email processed"
     }), 200
 
+
 if __name__ == "__main__":
-    app.run(port=6000)
+    app.run(port=7000, debug=True)
