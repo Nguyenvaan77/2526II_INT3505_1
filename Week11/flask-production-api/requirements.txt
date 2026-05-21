@@ -8,6 +8,6 @@ Jinja2==3.1.6
 MarkupSafe==3.0.3
 packaging==26.2
 prometheus_client==0.25.0
-prometheus-flask-exporter==0.25.0
+prometheus-flask-exporter==0.23.2
 Werkzeug==3.1.8
-flask-limiter==4.11.1
+flask-limiter==4.1.1
