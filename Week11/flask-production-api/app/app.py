@@ -1,5 +1,11 @@
-from flask import Flask, jsonify, request
+import os
+import signal
+import sys
+from threading import Event
+from uuid import uuid4
+from flask import Flask, jsonify, request, g
 from .logger import logger
+from .config import Config
 from prometheus_client import Counter, Histogram, Gauge, generate_latest
 from prometheus_flask_exporter import PrometheusMetrics
 from flask_limiter import Limiter
@@ -8,36 +14,35 @@ from flask_limiter.errors import RateLimitExceeded
 import time
 
 app = Flask(__name__)
+app.config.from_object(Config)
 
-# Setup Rate Limiter
-limiter = Limiter(
-    app=app,
-    key_func=get_remote_address,
-    default_limits=["100 per hour"],
-    storage_uri="memory://"
-)
+# Graceful shutdown event
+shutdown_event = Event()
+
+# Setup Rate Limiter with Redis backend
+try:
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=[Config.RATE_LIMIT_DEFAULT],
+        storage_uri=Config.REDIS_URL,
+        storage_options={"connection_pool_kwargs": {"max_connections": 50}}
+    )
+    logger.info(f"Rate limiter configured with Redis: {Config.REDIS_URL}")
+    REDIS_AVAILABLE = True
+except Exception as e:
+    logger.warning(f"Redis rate limiter initialization failed: {e}. Using memory storage.")
+    limiter = Limiter(
+        app=app,
+        key_func=get_remote_address,
+        default_limits=[Config.RATE_LIMIT_DEFAULT],
+        storage_uri="memory://"
+    )
+    REDIS_AVAILABLE = False
 
 # Setup Prometheus metrics
 metrics = PrometheusMetrics(app)
-metrics.info('flask_app_info', 'Flask Production API', version='1.0.0')
-
-# Custom metrics
-REQUEST_COUNT = Counter(
-    'http_requests_total',
-    'Total HTTP Requests',
-    ['method', 'endpoint', 'status']
-)
-
-REQUEST_DURATION = Histogram(
-    'http_request_duration_seconds',
-    'HTTP Request Duration',
-    ['method', 'endpoint']
-)
-
-ACTIVE_REQUESTS = Gauge(
-    'http_requests_active',
-    'Active HTTP Requests'
-)
+metrics.info('flask_app_info', Config.API_NAME, version=Config.API_VERSION)
 
 RATE_LIMIT_EXCEEDED = Counter(
     'rate_limit_exceeded_total',
@@ -45,14 +50,40 @@ RATE_LIMIT_EXCEEDED = Counter(
     ['endpoint']
 )
 
+# Application state tracking
+STARTUP_COMPLETE = False
+DEPENDENCIES_OK = {'redis': REDIS_AVAILABLE}
+
+
+def handle_sigterm(signum, frame):
+    """Handle SIGTERM signal for graceful shutdown"""
+    logger.info("SIGTERM received - initiating graceful shutdown")
+    shutdown_event.set()
+
+
+# Register signal handlers
+signal.signal(signal.SIGTERM, handle_sigterm)
+signal.signal(signal.SIGINT, handle_sigterm)
+
 
 @app.before_request
-def before_request():
-    """Log incoming requests and track active requests"""
+def add_request_context():
+    """Add request ID and check shutdown status"""
+    # Add request ID for tracing
+    g.request_id = str(uuid4())
+    
+    # Check if server is shutting down
+    if shutdown_event.is_set():
+        logger.warning(f"Request rejected - server shutting down: {request.method} {request.path}")
+        return jsonify({
+            "error": "Server shutting down",
+            "message": "Server is in graceful shutdown mode"
+        }), 503
+    
     request.start_time = time.time()
     ACTIVE_REQUESTS.inc()
     logger.info(
-        f"[REQUEST] {request.method} {request.path} from {request.remote_addr}"
+        f"[REQUEST] {request.method} {request.path} from {request.remote_addr} [ID: {g.request_id}]"
     )
 
 
@@ -74,7 +105,7 @@ def after_request(response):
     ).inc()
     
     logger.info(
-        f"[RESPONSE] {request.method} {request.path} - Status: {response.status_code}"
+        f"[RESPONSE] {request.method} {request.path} - Status: {response.status_code} [ID: {g.get('request_id', 'unknown')}]"
     )
     return response
 
@@ -96,18 +127,45 @@ def handle_rate_limit_exceeded(e):
 def home():
     """Home endpoint"""
     return jsonify({
-        "message": "Flask Production API",
-        "version": "1.0.0",
-        "status": "running"
+        "message": Config.API_NAME,
+        "version": Config.API_VERSION,
+        "status": "running",
+        "redis": "connected" if DEPENDENCIES_OK['redis'] else "disconnected"
     })
 
 
 @app.route('/health')
 def health():
-    """Health check endpoint"""
+    """Health check endpoint - basic liveness check"""
     return jsonify({
         "status": "healthy",
-        "message": "API is running"
+        "message": "API is running",
+        "version": Config.API_VERSION,
+        "dependencies": DEPENDENCIES_OK
+    }), 200
+
+
+@app.route('/startup')
+def startup_probe():
+    """K8s startup probe - checks if app is initialized"""
+    global STARTUP_COMPLETE
+    if STARTUP_COMPLETE:
+        return jsonify({"status": "ready", "message": "Application started"}), 200
+    else:
+        return jsonify({"status": "initializing", "message": "Application is initializing"}), 503
+
+
+@app.route('/ready')
+def readiness_probe():
+    """K8s readiness probe - checks if ready for traffic"""
+    if not STARTUP_COMPLETE:
+        return jsonify({"status": "not_ready", "message": "Application not initialized"}), 503
+    
+    # All checks passed
+    return jsonify({
+        "status": "ready",
+        "message": "Application is ready for traffic",
+        "dependencies": DEPENDENCIES_OK
     }), 200
 
 
@@ -147,6 +205,39 @@ def metrics_endpoint():
     return generate_latest(), 200, {'Content-Type': 'text/plain'}
 
 
+def initialize_app():
+    """Initialize application - check dependencies"""
+    global STARTUP_COMPLETE, DEPENDENCIES_OK
+    
+    logger.info("Initializing application...")
+    
+    # Check Redis connection if available
+    if REDIS_AVAILABLE:
+        try:
+            import redis
+            r = redis.Redis.from_url(Config.REDIS_URL, socket_connect_timeout=Config.REDIS_TIMEOUT)
+            r.ping()
+            DEPENDENCIES_OK['redis'] = True
+            logger.info("Redis connection verified")
+        except Exception as e:
+            DEPENDENCIES_OK['redis'] = False
+            logger.warning(f"Redis connection check failed: {e}")
+    
+    STARTUP_COMPLETE = True
+    logger.info("Application startup complete")
+
+
+# Initialize app on first request (Flask 2.0+)
+@app.before_first_request
+def on_first_request():
+    initialize_app()
+
+
 if __name__ == '__main__':
-    logger.info("Starting Flask Production API...")
-    app.run(host='0.0.0.0', port=3000, debug=False)
+    logger.info(f"Starting {Config.API_NAME}...")
+    logger.info(f"Config: HOST={Config.HOST}, PORT={Config.PORT}, DEBUG={Config.DEBUG}")
+    
+    # Initialize before running
+    initialize_app()
+    
+    app.run(host=Config.HOST, port=Config.PORT, debug=Config.DEBUG, threaded=True)
